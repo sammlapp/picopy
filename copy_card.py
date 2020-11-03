@@ -18,6 +18,7 @@ progress_led = LED(19)
 
 go_button = Button(3,hold_time=2)
 cancel_button = Button(2,hold_time=2)
+eject_button = Button(13,hold_time=2)
 
 rsync_process = None
 rsync_outq = None
@@ -49,6 +50,7 @@ def get_used_space(disk,scale=2**30):
     return float(disk_usage(disk).used)/scale
    
 def blink_error(n,reps=2):
+    """blink the error led to send a message"""
     for r in range(reps):
         for i in range(n):
             error_led.on()
@@ -60,6 +62,25 @@ def blink_error(n,reps=2):
 def blink_progress_led(outof10):
     progress_led.blink(0.1,0.15,outof10)
     sleep(3-0.25*outof10)
+
+def eject_drive(pattern):
+    matching_drives=glob(pattern)
+    if len(matching_drives)<1:
+        blink_error(3,2)
+        print(f'ERR: no drive found while trying to eject {pattern}')
+    elif len(matching_drives)>1:
+        blink_error(4,2)
+        print(f'ERR: multiple drives found while trying to eject {pattern}')
+    else:
+        #try to eject the disk with system eject command
+        drive=matching_drives[0]
+        cmd=f'eject {drive}'
+        print(cmd)
+        response=subprocess.Popen(shlex.split(cmd),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT).communicate()
+       #handle response #TODO
+    sleep(1)
 
 def prepare_copy():
     print('checking for source and dest drives')
@@ -204,7 +225,8 @@ def cancel_button_held():
 # the main loop only catches user input and sends work to threads
 
 #TODO: allow unmounting drives
-#TODO: handle rsync errors and report if copy is complete or not after rsync thread finishes (maybe status='completed' or status='incomplete transfer')
+#TODO: (done?) handle rsync errors and report if copy is complete or not after rsync thread finishes (maybe status='completed' or status='incomplete transfer')
+#TODO: send output to a log instead of stdout
 
 prev_status=None
 while True:
@@ -232,6 +254,20 @@ while True:
         status,rsync_process,rsync_outq,rsync_thread,out_dir=start_copy_thread(source,dest)
         progress_monitor_thread,progress_q  = start_progress_monitor_thread(source,dest,rsync_thread)
         print(status)
+    elif eject_button.is_pressed:
+        #wait to see if this is a simple press or hold:
+        eject_button.wait_for_release(2)
+        if eject_button.is_held:
+            #eject the destination drive
+            print('ejecting destination')
+            eject_drive(destination_pattern)
+        else: #short press
+            #eject the source drive
+            print('ejecting source')
+            eject_drive(source_pattern)
+
+        
+    #end-of-copy routine    
     elif status=='copying' and not rsync_thread.is_alive():
         #we are done copying, or it failed
         print('rsync thread finished')
@@ -245,7 +281,7 @@ while True:
             print('ERR: transfer was not complete. Hold Go to acknowledge.')
             status='incomplete_transfer'
     
-    #check if status changed 
+    #check if status changed during this iteration
     status_changed = (status!=prev_status)
     if status_changed:
         print(f'status changed to {status}')
@@ -259,11 +295,17 @@ while True:
             status_led.blink(0.1,2.9,n=None,background=True)
         elif status=='ready_to_copy':
             status_led.blink(1,1,n=None,background=True)
-        elif status=='incomplete_transfer':
-            error_led.on()
         elif status=='finished':
             status_led.on()
+        else:
+            status_led.off()
         
+        #error LED
+        if status=='incomplete_transfer':
+            error_led.on()
+        else:
+            error_led.off()
+
         #progress LED
         if status=='finished':
             progress_led.on()

@@ -9,14 +9,15 @@ import subprocess
 import threading
 import queue
 
+#TODO: rather than using pattern, check for .picopydest in each drive in /media/pi/
 destination_pattern = '/media/pi/OCOTERO*'
 source_pattern = '/media/pi/D4*'
 
 status_led = LED(26)
 error_led = LED(21)
-progress_led = LED(19)
+progress_led = LED(17)
 
-go_button = Button(3,hold_time=2)
+go_button = Button(19,hold_time=2)
 cancel_button = Button(2,hold_time=2)
 eject_button = Button(13,hold_time=2)
 
@@ -63,53 +64,98 @@ def blink_progress_led(outof10):
     progress_led.blink(0.1,0.15,outof10)
     sleep(3-0.25*outof10)
 
-def eject_drive(pattern):
-    matching_drives=glob(pattern)
-    if len(matching_drives)<1:
+
+def get_src_drive():
+    #a source drive does not have a .picopydest in root directory
+    #must find exactly one. if zero returns None, if >1 blinks error
+    drives=glob('/media/pi/*')
+    src_drives = []
+    for d in drives:
+        if not os.path.exists(f'{d}/.picopydest'):
+            src_drives.append(d)
+    if len(src_drives)>1:
+        print('ERR: found multiple source drives')
         blink_error(3,2)
-        print(f'ERR: no drive found while trying to eject {pattern}')
-    elif len(matching_drives)>1:
+        return None
+    elif len(src_drives)<1:
+        return None
+    return src_drives[0]
+
+def get_dest_drive():
+    #a destination drive has .picopydest in root directory
+    #must find exactly one. if zero returns None, if >1 blinks error
+    drives=glob('/media/pi/*')
+    dest_drives = []
+    for d in drives:
+        print(f'checking for {d}/.picopydest')
+        if os.path.exists(f'{d}/.picopydest'):
+            dest_drives.append(d)
+    if len(dest_drives)>1:
+        print('ERR: found multiple destination drives')
         blink_error(4,2)
-        print(f'ERR: multiple drives found while trying to eject {pattern}')
+        return None
+    elif len(dest_drives)<1:
+        return None
+    return dest_drives[0]
+
+def eject_drive(source=True):
+    """eject the source drive (source=True) or dest drive (source=False)"""
+    print('attempting to eject')
+    
+    drive = get_src_drive() if source else get_dest_drive()
+    print(drive)
+
+    if drive is None:
+        print("ERR: no drive to eject")
     else:
         #try to eject the disk with system eject command
-        drive=matching_drives[0]
         cmd=f'eject {drive}'
         print(cmd)
         response=subprocess.Popen(shlex.split(cmd),
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT).communicate()
-       #handle response #TODO
+            stderr=subprocess.STDOUT)
+        #response.communicate()
+        [print(r) for r in output_parser(response)]
+
     sleep(1)
 
 def prepare_copy():
     print('checking for source and dest drives')
-
-    dest=glob(destination_pattern)
-    if len(dest)<1:
-        blink_error(3,2)
-        print('ERR: no destination found')
-        return 'idle',None,None
-    elif len(dest)>1:
-        blink_error(4,2)
-        print('ERR: multiple destinations found')
-        return 'idle',None,None
-    else:
-        dest=dest[0]
-        print('dest: '+dest)
     
-    source=glob(source_pattern)
-    if len(source)<1:
-        blink_error(3,3)
+    source=get_src_drive()
+    if source is None:
         print('ERR: no source found')
         return 'idle',None,None
-    elif len(source)>1:
-        blink_error(4,3)
-        print('ERR: multiple sources found')
+
+    dest = get_dest_drive()
+    if dest is None:
+        print('ERR: no destination found. Dest should contain .picopydest in root')
         return 'idle',None,None
-    else:
-        source=source[0]
-        print('\tsource: '+source)
+    #dest=glob(destination_pattern)
+    #if len(dest)<1:
+    #    blink_error(3,2)
+    #    print('ERR: no destination found')
+    #    return 'idle',None,None
+    #elif len(dest)>1:
+    #    blink_error(4,2)
+    #    print('ERR: multiple destinations found')
+    #    return 'idle',None,None
+    #else:
+    #    dest=dest[0]
+    #    print('dest: '+dest)
+    #
+    #source=glob(source_pattern)
+    #if len(source)<1:
+    #    blink_error(3,3)
+    #    print('ERR: no source found')
+    #    return 'idle',None,None
+    #elif len(source)>1:
+    #    blink_error(4,3)
+    #    print('ERR: multiple sources found')
+    #    return 'idle',None,None
+    #else:
+    #    source=source[0]
+    #    print('\tsource: '+source)
  
 
     #ok, now we know we have 1 source and 1 destination
@@ -174,6 +220,7 @@ def check_integrity_of_copy(source,dest,out_dir):
     check_process=subprocess.Popen(shlex.split(cmd),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
+    #check_process.communicate()
     return_values = [f for f in output_parser(check_process) if "Number of regular files transferred" in f]
     print(return_values)
 
@@ -260,11 +307,11 @@ while True:
         if eject_button.is_held:
             #eject the destination drive
             print('ejecting destination')
-            eject_drive(destination_pattern)
+            eject_drive(source=False)
         else: #short press
             #eject the source drive
             print('ejecting source')
-            eject_drive(source_pattern)
+            eject_drive(source=True)
 
         
     #end-of-copy routine    

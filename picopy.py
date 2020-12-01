@@ -1,3 +1,4 @@
+from math import ceil
 import datetime
 print(f'started picopy at {datetime.datetime.now()}')
 from gpiozero import LED, Button
@@ -23,12 +24,10 @@ eject_button = Button(5,hold_time=1)
 #power button is GPIO3, but managed by a separate script
 
 #script parameters
-#every x seconds, check if a source and destination are mounted
-mount_check_interval = 3
-#location of mounted USB devices
-mount_location = '/media/pi'
-#amount of time to sleep between checking for user input
-ui_sleep_time = 0.1
+mount_check_interval = 3 #every x seconds, check if a source and destination are mounted
+mount_location = '/media/pi' #location of mounted USB devices
+ui_sleep_time = 0.05 #seconds to sleep between checking for user input
+min_file_size = '100k' #minimum file size to include: 100kb ~=1sec .WAV audio
 
 #initialize global variables
 rsync_process = None
@@ -210,7 +209,7 @@ def start_copy_thread(source,dest):
     sleep(0.5)
     time_str=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     dest_save_dir=dest+"/"+os.path.basename(source)+"_"+time_str
-    cmd = "rsync -rvh --log-file=./rsync.log --min-size=1k --progress --exclude .Trashes --exclude .fsevents* --exclude System* --exclude .Spotlight* "+source+" "+dest_save_dir
+    cmd = f"rsync -rvh --log-file=./rsync.log --min-size={min_file_size} --progress --exclude .Trashes --exclude .fsevents* --exclude System* --exclude .Spotlight* {source} {dest_save_dir}"
     log(cmd)
     rsync_process = subprocess.Popen(shlex.split(cmd),
             stdout=subprocess.PIPE,
@@ -222,17 +221,16 @@ def start_copy_thread(source,dest):
     rsync_thread = threading.Thread(target=output_reader,args=(rsync_process,rsync_outq))
     rsync_thread.start()
 
-    sleep(0.5) #give the process time to start
     
     #return the queue, thread, and process
     #we can read the queue and terminate the process from outside this function
     return ('copying',rsync_process,rsync_outq,rsync_thread,dest_save_dir)
 
-def dest_synced(source,dest,dest_save_dir):
+def check_dest_synced(source,dest,dest_save_dir):
     log("checking if dest has all files from source")
     start_time=time()
     #rsync command (dry run) to see if any files would be transferred based on size difference
-    cmd = "rsync -rvn --size-only --stats --min-size=1k --exclude .Trashes --exclude .fsevents* --exclude System* --exclude .Spotlight* "+source+" "+dest_save_dir
+    cmd = f"rsync -rvn --size-only --stats --min-size={min_file_size} --exclude .Trashes --exclude .fsevents* --exclude System* --exclude .Spotlight* {source} {dest_save_dir}"
     log(cmd)
     check_process=subprocess.Popen(shlex.split(cmd),
             stdout=subprocess.PIPE,
@@ -251,6 +249,10 @@ def cancel_button_held():
     if not status in ("copying","incomplete_copy","complete_copy"):
         #whatever status we were in, return to idle status
         return 'idle'
+    elif status != "copying": #no action
+        return status
+    
+    #if we get here, status is "copying". we want to cancel the copy. 
     if rsync_process is None:
         #if status is copying, but no rsync process, return to idle status
         return 'idle'
@@ -289,28 +291,33 @@ while True:
     elif go_button.is_pressed and status=='complete_transfer':
         log('user aknowledged finished transfer')
         status='idle'
-    elif go_button.is_held and status=='incomplete transfer':
+        sleep(1)
+    elif go_button.is_held and status=='incomplete_transfer':
         #requires user to HOLD go button to aknowledge an incomplete transfer
         log('user akcnowledged incomplete transfer')
         status='idle'
+        sleep(3)
     elif go_button.is_pressed and status=='ready_to_copy':
         #start copy thread
         status,rsync_process,rsync_outq,rsync_thread,dest_save_dir=start_copy_thread(source,dest)
         progress_monitor_thread,progress_q  = start_progress_monitor_thread(source,dest,rsync_thread)
+        sleep(1)
     elif eject_button.is_pressed:
+        if status=='ready_to_copy':
+            status='idle'
         #wait to see if this is a simple press or hold:
         eject_button.wait_for_release(1)
         if eject_button.is_held:
             #eject the destination drive
             log('ejecting destination')
             eject_drive(source=False)
+            sleep(3)
         else: #short press, no longer held
             #eject the source drive
             log('ejecting source')
             eject_drive(source=True)
-        if status=='ready_to_copy':
-            status='idle'
-    
+            sleep(1)
+
     #handle end-of-copy: check integrity of copy
     if status=='copying' and not rsync_thread.is_alive():
         #we are done copying, or it failed
@@ -322,7 +329,7 @@ while True:
         progress_led.blink(0.25,0.25)
 
         #report finished or incomplete transfer
-        complete_transfer = dest_synced(source,dest,dest_save_dir)
+        complete_transfer = check_dest_synced(source,dest,dest_save_dir)
         if complete_transfer:
             log('transfer was complete. Press Go to acknowledge.')
             status='complete_transfer'
@@ -359,7 +366,7 @@ while True:
         #update status LED using messages from progress_q
         try:
             progress_float = progress_q.get(block=False)
-            progress_outof10 = int(progress_float*10)
+            progress_outof10 = ceil(progress_float*10)
             blink_progress_led(progress_outof10)
         except queue.Empty:
             pass

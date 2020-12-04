@@ -1,7 +1,7 @@
-# picopy basics
+# picopy
 Copy sd cards to to a hard drive on Raspberry Pi-based Swallow devices
 
-## Using Swallows for Copying
+## Using Swallows to copy SD cards
 Swallows are raspberry pi-based devices that copy SD card content to a hard drive. This document explains how to use Swallows with the picopy utility to copy SD card content to a hard drive. 
 
 The Swallow always has a “status” which indicates the current mode of operation. The LEDs indicate the current status of the Swallow. The flow chart may be all you need to understand how to use Swallows. (Just make sure your destination drive has a .picopydest file, and don’t disconnect drives without ejecting them first) 
@@ -13,7 +13,7 @@ The Swallow always has a “status” which indicates the current mode of operat
 
 **Progress** (blue): during copying, reports the progress out of 10 based on the total size of the transfer. For instance, if the transfer is between 10 and 20% complete by size, the light blinks 2 times in a row every ~4 seconds. 
 
-**Error** (red): this light blinks to report errors (See[Errors and Troubleshooting](#errors-and-troubleshooting) below)
+**Error** (red): this light blinks to report errors (See [Errors and Troubleshooting](#errors-and-troubleshooting) below)
 
 **Source** (white): this light is on when a source drive (such as an SD card) is mounted.
 
@@ -30,7 +30,7 @@ There are four buttons and two types of button presses: a tap (<1 sec) and a hol
 
 **Power**: power on and off the pi (this will immediately cancel any copying task!)
 
-# General Use
+# Detailed Instructions
 
 ## Set-Up
 1. If you are using a new “destination” hard drive (the hard drive to which you will copy data): Plug the “destination drive” into a computer. In the top-level directory of that drive, make a file called `.picopydest` (in terminal, `touch .picopydest`). 

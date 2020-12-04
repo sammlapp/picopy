@@ -9,11 +9,15 @@ The Swallow always has a “status” which indicates the current mode of operat
 ![workflow diagram for swallows](img/workflow.jpg)
 
 ## LEDs: 
-Status: reports the current status
+**Status** (green): reports the current status
 
-Prog: during copying, reports the progress out of 10 based on the total size of the transfer. For instance, if the transfer is between 10 and 20% complete by size, the light blinks 2 times in a row every ~4 seconds. 
+**Progress** (blue): during copying, reports the progress out of 10 based on the total size of the transfer. For instance, if the transfer is between 10 and 20% complete by size, the light blinks 2 times in a row every ~4 seconds. 
 
-Error: this light blinks to report errors (See Errors and Troubleshooting below)
+**Error** (red): this light blinks to report errors (See[Errors and Troubleshooting](#errors-and-troubleshooting) below)
+
+**Source** (white): this light is on when a source drive (such as an SD card) is mounted.
+
+**Dest** (white): this light is on when a destination drive is mounted. A destination drive is any USB drive with a `.picopydest` file in its root directory. 
 
 ## Buttons: 
 There are four buttons and two types of button presses: a tap (<1 sec) and a hold (1-3 sec)
@@ -29,7 +33,7 @@ There are four buttons and two types of button presses: a tap (<1 sec) and a hol
 # General Use
 
 ## Set-Up
-1. If you are using a new “destination” hard drive (the hard drive to which you will copy data): Plug the “destination drive” into a computer. In the top-level directory of that drive, make a file called .pycopydest (in terminal, `touch .pycopydest`). 
+1. If you are using a new “destination” hard drive (the hard drive to which you will copy data): Plug the “destination drive” into a computer. In the top-level directory of that drive, make a file called `.picopydest` (in terminal, `touch .picopydest`). 
 
 2. attach the Swallow and hard drive to their power supplies
 

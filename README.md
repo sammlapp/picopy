@@ -1,4 +1,4 @@
-# picopy Intro
+# picopy basics
 Copy sd cards to to a hard drive on Raspberry Pi-based Swallow devices
 
 ## Using Swallows for Copying

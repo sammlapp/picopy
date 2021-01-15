@@ -47,19 +47,19 @@ The flow chart above shows how each of the buttons can be used depending on the 
 The typical workflow without interruptions or errors is:
 1. Tap “Go” to prepare a transfer 
 - Checks if source and destination are available
-2. status changes from “idle” to “ready to copy”
-- Tap “Go” again to start the transfer
-3. Status changes from “ready to copy” to “copying”
+- status changes from “idle” to “ready to copy”
+2. Tap “Go” again to start the transfer
+- Status changes from “ready to copy” to “copying”
 - wait for it to finish (blue LED indicates progress as # flashes/10)
-4. Status changes from “copying” to “checking copy”
- -Status changes from “checking copy” to “complete”
-5. Tap “Go” again to acknowledge the completed transfer
+- Status changes from “copying” to “checking copy”
+- Status changes from “checking copy” to “complete”
+3. Tap “Go” again to acknowledge the completed transfer
 
 ## After copying
 1. Eject the source (push eject button) and destination (hold eject button) drives
 - The src and dest LEDs should turn off
 - It is now safe to unplug the drives from USB ports
-2. Power off the pi by pushing the power button
+2. Power off the pi by tapping the power button
 
 # Errors and Troubleshooting
 
@@ -68,10 +68,10 @@ This means the data was not completely transferred to the destination; the rsync
 Hold the Go button to acknowledge the incomplete transfer and return to “idle”
 
 ### 3-blink error: source drive
-Check that the src LED is on. If it is not, no source drive is mounted. (A source drive is any external USB drive that does not have .picopydest in its root folder)
-Make sure there aren’t multiple source drives mounted
-Unmount then unplug all USB devices and start over
-Power off the pi and start over
+- Check that the src LED is on. If it is not, no source drive is mounted (or multiple possible source drives are mounted). (A source drive is any external USB drive that does not have .picopydest in its root folder)
+- Make sure there aren’t multiple source drives mounted
+- Unmount then unplug all USB devices and start over
+- Power off the pi and start over
 
 ### 4-blink error: dest drive
 - Check that the dest LED is on. If it is not, no destination drive is mounted. (A destination drive is any external USB drive that has .picopydest in its root folder)

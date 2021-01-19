@@ -86,3 +86,6 @@ Hold the Go button to acknowledge the incomplete transfer and return to â€œidleâ
 ### General debugging: 
 - ssh into the raspberry pi from a computer
 - Open the log files located in /usr/bin/picopy.out to read the output of the copying script
+
+### schematic for Pi-HAT
+![swallow schematic](swallow-schematic.pdf)

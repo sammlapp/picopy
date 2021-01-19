@@ -88,4 +88,4 @@ Hold the Go button to acknowledge the incomplete transfer and return to â€œidleâ
 - Open the log files located in /usr/bin/picopy.out to read the output of the copying script
 
 ### schematic for Pi-HAT
-![swallow schematic](swallow-schematic.pdf)
+![swallow schematic](img/swallow-schematic.png)

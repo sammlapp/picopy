@@ -2,7 +2,7 @@
 Copy sd cards to to a hard drive on Raspberry Pi-based Swallow devices
 
 ## Using Swallows to copy SD cards
-Swallows are raspberry pi-based devices that copy SD card content to a hard drive. This document explains how to use Swallows with the picopy utility to copy SD card content to a hard drive. 
+Swallows are raspberry pi-based devices that copy SD card content to a hard drive. This document explains how to use Swallows to copy SD card content to a hard drive. It assumes the Swallows are fully set up, so that picopy.py runs on boot. 
 
 The Swallow always has a “status” which indicates the current mode of operation. The LEDs indicate the current status of the Swallow. The flow chart may be all you need to understand how to use Swallows. (Just make sure your destination drive has a .picopydest file, and don’t disconnect drives without ejecting them first) 
 

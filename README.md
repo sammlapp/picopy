@@ -56,7 +56,7 @@ The typical workflow without interruptions or errors is:
 3. Tap “Go” again to acknowledge the completed transfer
 
 ## After copying
-1. Eject the source (push eject button) and destination (hold eject button) drives
+1. Eject the source (tap eject button) and destination (hold eject button) drives
 - The src and dest LEDs should turn off
 - It is now safe to unplug the drives from USB ports
 2. Power off the pi by tapping the power button

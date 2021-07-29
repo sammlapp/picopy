@@ -89,3 +89,17 @@ Hold the Go button to acknowledge the incomplete transfer and return to â€œidleâ
 
 ### schematic for Pi-HAT
 ![swallow schematic](img/swallow-schematic.png)
+
+
+### SSH into pi with Ethernet cable
+If you connect an ethernet cable directly to a Raspberry Pi, you can SSH in (provided SSH is enabled, `ssh` file exists in `~`) with:
+
+`ssh user@hostname.local`
+
+for instance,
+
+`ssh pi@raspberry.local` for unchanged hostname, or
+
+`ssh pi@swallow-001.local` if the hostname was changed to `swallow-001`
+
+This allows you to view, manipulate, and debug files and programs on the Swallow. 

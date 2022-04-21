@@ -9,6 +9,7 @@ from shutil import disk_usage
 import shlex
 import subprocess
 import threading
+from pathlib import Path
 import queue
 
 #GPIO pin setup for LEDs and Buttons
@@ -209,6 +210,12 @@ def start_copy_thread(source,dest):
     sleep(0.5)
     time_str=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     dest_save_dir=dest+"/"+os.path.basename(source)+"_"+time_str
+    #first create the directory and copy any text files:
+    Path(dest_save_dir).mkdir(exist_ok=True,parents=True)
+    cmd="find "+source+" -name *.txt -exec cp {} "+dest_save_dir+" \;"
+    subprocess.run(shlex.split(cmd))
+    log("copied all txt/TXT files")
+
     cmd = f"rsync -rvh --log-file=./rsync.log --min-size={min_file_size} --progress --exclude .Trashes --exclude .fsevents* --exclude System* --exclude .Spotlight* {source} {dest_save_dir}"
     log(cmd)
     rsync_process = subprocess.Popen(shlex.split(cmd),

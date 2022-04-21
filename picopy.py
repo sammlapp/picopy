@@ -64,7 +64,7 @@ def update_leds(status):
         status_led.on()
     else:
         status_led.off()
-    
+
     #error LED
     if status=='incomplete_transfer':
         error_led.on()
@@ -76,13 +76,13 @@ def update_leds(status):
         progress_led.on()
     elif status !='copying':
         progress_led.off()
-    
+
 def get_free_space(disk,scale=2**30):
     return float(disk_usage(disk).free)/scale
 
 def get_used_space(disk,scale=2**30):
     return float(disk_usage(disk).used)/scale
-   
+
 def blink_error(n,reps=2):
     """blink the error led to send a message"""
     for r in range(reps):
@@ -91,7 +91,7 @@ def blink_error(n,reps=2):
             sleep(0.2)
             error_led.off()
             sleep(0.2)
-        sleep(0.4) 
+        sleep(0.4)
 
 def blink_progress_led(outof10):
     """blink the progress led up to 10 times to indicate progress out of 10"""
@@ -137,7 +137,7 @@ def get_dest_drive():
 def eject_drive(source=True):
     """eject the source drive (source=True) or dest drive (source=False)"""
     log('attempting to eject')
-    
+
     drive = get_src_drive() if source else get_dest_drive()
     log(drive)
 
@@ -157,7 +157,7 @@ def eject_drive(source=True):
 
 def prepare_copy():
     log('checking for source and dest drives')
-    
+
     source=get_src_drive()
     if source is None:
         blink_error(3,3)
@@ -176,7 +176,7 @@ def prepare_copy():
     #check that enough space on the dest for source
     log('checking free space')
     src_size = get_used_space(source)
-    dest_free = get_free_space(dest) 
+    dest_free = get_free_space(dest)
     log(f"\tsrc size: {src_size} Gb")
     log(f"\tdest free: {dest_free} Gb")
     if src_size>dest_free:
@@ -197,10 +197,10 @@ def start_progress_monitor_thread(source,dest,rsync_thread):
 
 def monitor_progress(source,dest,progress_q,rsync_thread):
     src_size = get_used_space(source)
-    dest_free = get_free_space(dest) 
+    dest_free = get_free_space(dest)
     while rsync_thread.is_alive():
         sleep(6)
-        copied_size = dest_free - get_free_space(dest) 
+        copied_size = dest_free - get_free_space(dest)
         progress_float = copied_size / src_size
         progress_q.put(progress_float)
 
@@ -210,25 +210,34 @@ def start_copy_thread(source,dest):
     sleep(0.5)
     time_str=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     dest_save_dir=dest+"/"+os.path.basename(source)+"_"+time_str
-    #first create the directory and copy any text files:
+
+    #first create the directory
     Path(dest_save_dir).mkdir(exist_ok=True,parents=True)
-    cmd="find "+source+" -name *.txt -exec cp {} "+dest_save_dir+" \;"
+
+    #copy any txt/TXT files (b/c they may be smaller than min-size):
+    cmd = f"rsync -a --size-only --include '*/' --include '*.txt'  --include '*.TXT' --exclude '*' {source} {dest_save_dir}"
+    log(cmd)
     subprocess.run(shlex.split(cmd))
-    log("copied all txt/TXT files")
+    #
+    # for extension in ('txt','TXT'):
+    #     cmd="find "+source+" -name *."+extension+" -exec cp {} "+dest_save_dir+" \;"
+    #     log(cmd)
+    #     subprocess.run(shlex.split(cmd))
+    # log("copied all txt/TXT files")
 
     cmd = f"rsync -rvh --log-file=./rsync.log --min-size={min_file_size} --progress --exclude .Trashes --exclude .fsevents* --exclude System* --exclude .Spotlight* {source} {dest_save_dir}"
     log(cmd)
     rsync_process = subprocess.Popen(shlex.split(cmd),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
-    
+
     #start a thread to watch the rsync process and catch output
     rsync_outq = queue.Queue()
 
     rsync_thread = threading.Thread(target=output_reader,args=(rsync_process,rsync_outq))
     rsync_thread.start()
 
-    
+
     #return the queue, thread, and process
     #we can read the queue and terminate the process from outside this function
     return ('copying',rsync_process,rsync_outq,rsync_thread,dest_save_dir)
@@ -236,6 +245,20 @@ def start_copy_thread(source,dest):
 def check_dest_synced(source,dest,dest_save_dir):
     log("checking if dest has all files from source")
     start_time=time()
+
+    n_files_out_of_sync = 0
+
+    #check txt/TXT files: (dry run with -n flag)
+    cmd = f"rsync -an --size-only --stats --include '*/' --include '*.txt'  --include '*.TXT' --exclude '*' {source} {dest_save_dir}"
+    log(cmd)
+    check_process=subprocess.Popen(shlex.split(cmd),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+    return_values = [f for f in output_parser(check_process) if "Number of regular files transferred" in f]
+    log(return_values)
+    n_files_out_of_sync +=int(return_values[0].split(' ')[-1])
+
+    #check all files over size limit:
     #rsync command (dry run) to see if any files would be transferred based on size difference
     cmd = f"rsync -rvn --size-only --stats --min-size={min_file_size} --exclude .Trashes --exclude .fsevents* --exclude System* --exclude .Spotlight* {source} {dest_save_dir}"
     log(cmd)
@@ -246,7 +269,7 @@ def check_dest_synced(source,dest,dest_save_dir):
     return_values = [f for f in output_parser(check_process) if "Number of regular files transferred" in f]
     log(return_values)
 
-    n_files_out_of_sync=int(return_values[0].split(' ')[-1])
+    n_files_out_of_sync +=int(return_values[0].split(' ')[-1])
     log(n_files_out_of_sync)
     return (n_files_out_of_sync==0)
 
@@ -258,12 +281,12 @@ def cancel_button_held():
         return 'idle'
     elif status != "copying": #no action
         return status
-    
-    #if we get here, status is "copying". we want to cancel the copy. 
+
+    #if we get here, status is "copying". we want to cancel the copy.
     if rsync_process is None:
         #if status is copying, but no rsync process, return to idle status
         return 'idle'
-    
+
     #if status is copying and rsync process is running, cancel it
     rsync_process.terminate()
     try:
@@ -288,7 +311,7 @@ while True:
     sleep(ui_sleep_time)
 
     #handle user input
-    if cancel_button.is_held: 
+    if cancel_button.is_held:
         status = cancel_button_held()
         sleep(3)
     elif go_button.is_pressed and status=='idle':
@@ -345,7 +368,7 @@ while True:
             status='incomplete_transfer'
         status_led.off
         progress_led.off
-    
+
     #check if source and dest drives are mounted
     if time()-last_mount_check>mount_check_interval:
         last_mount_check=time()
@@ -356,7 +379,7 @@ while True:
     status_changed = (status!=prev_status)
     if status_changed:
         log(f'status: {status}')
-    
+
     #update LEDs and depending on status:
     if status_changed:
         update_leds(status)
@@ -369,7 +392,7 @@ while True:
             log(line)
         except queue.Empty:
             pass #no lines in queue
-        
+
         #update status LED using messages from progress_q
         try:
             progress_float = progress_q.get(block=False)

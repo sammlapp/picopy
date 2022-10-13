@@ -62,7 +62,7 @@ The typical workflow without interruptions or errors is:
 1. Eject the source (tap eject button) and destination (hold eject button) drives
 - The src and dest LEDs should turn off
 - It is now safe to unplug the drives from USB ports
-2. Power off the pi by tapping the power button
+2. If desired, power off the device by holding the power button for 3 seconds
 
 # Errors and Troubleshooting
 

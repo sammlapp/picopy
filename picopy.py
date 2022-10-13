@@ -31,7 +31,9 @@ mount_check_interval = (
 )  # every x seconds, check if a source and destination are mounted
 mount_location = "/media/pi"  # location of mounted USB devices
 ui_sleep_time = 0.05  # seconds to sleep between checking for user input
-min_file_size = "100k"  # minimum file size to include: 100kb ~=1sec .WAV audio
+min_file_size = "100k"  # minimum .wav/.WAV file size to include: 100kb ~=1sec .WAV audio
+# note: all files other than .wav and .WAV are copied regardless of size, but 
+# except the excluded file types: '.Trashes'  '.fsevents*' 'System*' '.Spotlight*'
 
 # initialize global variables
 rsync_process = None
@@ -234,18 +236,22 @@ def start_copy_thread(source, dest):
     # first create the directory
     Path(dest_save_dir).mkdir(exist_ok=True, parents=True)
 
-    # copy any txt/TXT files (b/c they may be smaller than min-size):
-    cmd = f"rsync -a --size-only --include '*/' --include '*.txt'  --include '*.TXT' --exclude '*' {source} {dest_save_dir}"
+    # we will run two rsync commands, copying all non-wav files then including wav files over min_file_size
+    # first copy everything except .wav, .WAV, and architve files we don't want
+    cmd = (
+        f"rsync -rv --log-file=./rsync.log --progress " +
+        f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' " +
+        f"--exlude '*.wav' --exlude '*.WAV' {source} {dest_save_dir}"
+        )
     log(cmd)
     subprocess.run(shlex.split(cmd))
-    #
-    # for extension in ('txt','TXT'):
-    #     cmd="find "+source+" -name *."+extension+" -exec cp {} "+dest_save_dir+" \;"
-    #     log(cmd)
-    #     subprocess.run(shlex.split(cmd))
-    # log("copied all txt/TXT files")
-
-    cmd = f"rsync -rvh --log-file=./rsync.log --min-size={min_file_size} --progress --exclude .Trashes --exclude .fsevents* --exclude System* --exclude .Spotlight* {source} {dest_save_dir}"
+    
+    # second, copy .wav and .WAV files above min_file_size
+    cmd = (
+        f"rsync -rv --log-file=./rsync.log --min-size={min_file_size} --progress --ignore-existing " +
+        f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' " +
+        f"{source} {dest_save_dir}"
+        )
     log(cmd)
     rsync_process = subprocess.Popen(
         shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -270,8 +276,12 @@ def check_dest_synced(source, dest, dest_save_dir):
 
     n_files_out_of_sync = 0
 
-    # check txt/TXT files: (dry run with -n flag)
-    cmd = f"rsync -an --size-only --stats --include '*/' --include '*.txt'  --include '*.TXT' --exclude '*' {source} {dest_save_dir}"
+    # check sync of non wav/WAV files: (dry run with -n flag and --stats)
+    cmd = (
+        f"rsync -rvn --stats  --progress" +
+        f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' " +
+        f"--exlude '*.wav' --exlude '*.WAV' {source} {dest_save_dir}"
+        )
     log(cmd)
     check_process = subprocess.Popen(
         shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -284,9 +294,13 @@ def check_dest_synced(source, dest, dest_save_dir):
     log(return_values)
     n_files_out_of_sync += int(return_values[0].split(" ")[-1])
 
-    # check all files over size limit:
+    # check sync of all wav/WAV files over size limit:
     # rsync command (dry run) to see if any files would be transferred based on size difference
-    cmd = f"rsync -rvn --size-only --stats --min-size={min_file_size} --exclude .Trashes --exclude .fsevents* --exclude System* --exclude .Spotlight* {source} {dest_save_dir}"
+    cmd = (
+        f"rsync -rvn --stats --min-size={min_file_size} --progress --ignore-existing " +
+        f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' " +
+        f"{source} {dest_save_dir}"
+        )
     log(cmd)
     check_process = subprocess.Popen(
         shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT

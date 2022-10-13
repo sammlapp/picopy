@@ -114,12 +114,12 @@ def blink_progress_led(outof10):
 
 def get_src_drive():  # TODO: blink the drive LED rather than error
     """search for source and destination drives mounted at mount_location
-    a source drive does is any drive listed in /media/pi/ that does not have a .picopydest in root directory
+    a source drive does is any drive listed in /media/pi/ that does not have a file/folder named PICOPY_DESTINATION in root directory
     must find exactly one. if zero returns None, if >1 blinks error"""
     drives = glob(f"{mount_location}/*")
     src_drives = []
     for d in drives:
-        if not os.path.exists(f"{d}/.picopydest"):
+        if not os.path.exists(f"{d}/PICOPY_DESTINATION"):
             src_drives.append(d)
     if len(src_drives) > 1:
         log("ERR: found multiple source drives")
@@ -131,13 +131,13 @@ def get_src_drive():  # TODO: blink the drive LED rather than error
 
 
 def get_dest_drive():
-    # a destination drive has .picopydest in root directory
+    # a destination drive has file/folder PICOPY_DESTINATION in root directory
     # must find exactly one. if zero returns None, if >1 blinks error
     drives = glob(f"{mount_location}/*")
     dest_drives = []
     for d in drives:
-        # log(f'checking for {d}/.picopydest')
-        if os.path.exists(f"{d}/.picopydest"):
+        # log(f'checking for {d}/PICOPY_DESTINATION')
+        if os.path.exists(f"{d}/PICOPY_DESTINATION"):
             dest_drives.append(d)
     if len(dest_drives) > 1:
         log("ERR: found multiple destination drives")
@@ -182,7 +182,7 @@ def prepare_copy():
     dest = get_dest_drive()
     if dest is None:
         blink_error(4, 3)
-        log("ERR: no destination found. Dest should contain .picopydest in root")
+        log("ERR: no destination found. Dest should contain file or folder PICOPY_DESTINATION in root")
         return "idle", None, None
 
     log(f"found source drive {source} and destination drive {dest}")

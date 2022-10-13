@@ -276,7 +276,7 @@ def check_dest_synced(source, dest, dest_save_dir):
 
     # check sync of non wav/WAV files: (dry run with -n flag and --stats)
     cmd = (
-        f"rsync -rvn --stats  --progress " +
+        f"rsync -rvn --stats  --progress --size-only " +
         f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' " +
         f"--exclude '*.wav' --exclude '*.WAV' {source} {dest_save_dir}"
         )

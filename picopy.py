@@ -26,9 +26,7 @@ eject_button = Button(5, hold_time=1)
 # power button is GPIO3, but managed by a separate script
 
 # script parameters
-mount_check_interval = (
-    3
-)  # every x seconds, check if a source and destination are mounted
+mount_check_interval = 1  # every x seconds, check if a source and destination are mounted
 mount_location = "/media/pi"  # location of mounted USB devices
 ui_sleep_time = 0.05  # seconds to sleep between checking for user input
 min_file_size = "100k"  # minimum .wav/.WAV file size to include: 100kb ~=1sec .WAV audio

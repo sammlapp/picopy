@@ -86,7 +86,7 @@ Hold the Go button to acknowledge the incomplete transfer and return to â€œidleâ
 -  There is not enough space on the destination for the contents of the source. Use a destination drive with more space
 -  If you believe there should be enough space, check for large .Trashes and remove the trash if desired
 
-### 10 raping blinks of red Error LED:
+### 10 rapid blinks of red Error LED:
 - User attempted to shut down the swallow, but there are external drives mounted. Shutdown will not occur. Unmount all drives before shutting down.
 
 ### Blue, Green, and Red LEDs flash 5 times slowly together:

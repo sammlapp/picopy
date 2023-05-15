@@ -86,7 +86,7 @@ Hold the Go button to acknowledge the incomplete transfer and return to â€œidleâ
 -  There is not enough space on the destination for the contents of the source. Use a destination drive with more space
 -  If you believe there should be enough space, check for large .Trashes and remove the trash if desired
 
-### 6-blink error: source drive disk space unknown
+### 6-blink error: bad files on source drive
 -  Unable to access source drive and read disk space. Likely caused by corrupted files on drive.
 -  Recommended to inspect source drive and, if desired, copy accessible files between drives manually through the terminal or on another device.
 

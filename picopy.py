@@ -1,4 +1,4 @@
-from math import ceil
+from math import floor
 import datetime
 
 print(f"started picopy at {datetime.datetime.now()}")
@@ -443,7 +443,7 @@ while True:
         # update status LED using messages from progress_q
         try:
             progress_float = progress_q.get(block=False)
-            progress_outof10 = ceil(progress_float * 10)
+            progress_outof10 = floor(progress_float * 10)
             blink_progress_led(progress_outof10)
         except queue.Empty:
             pass

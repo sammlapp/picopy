@@ -190,7 +190,12 @@ def prepare_copy():
     # ok, now we know we have 1 source and 1 destination
     # check that enough space on the dest for source
     log("checking free space")
-    src_size = get_used_space(source)
+    try:
+        src_size = get_used_space(source)
+    except OSError:
+        log("ERR: I/O error, card likely corrupted. Please copy manually!")
+        blink_error(6, 3)
+        return "idle", None, None
     dest_free = get_free_space(dest)
     log(f"\tsrc size: {src_size} Gb")
     log(f"\tdest free: {dest_free} Gb")

@@ -1,4 +1,4 @@
-from math import ceil
+from math import floor
 import datetime
 
 print(f"started picopy at {datetime.datetime.now()}")
@@ -190,7 +190,12 @@ def prepare_copy():
     # ok, now we know we have 1 source and 1 destination
     # check that enough space on the dest for source
     log("checking free space")
-    src_size = get_used_space(source)
+    try:
+        src_size = get_used_space(source)
+    except OSError:
+        log("ERR: I/O error, card likely corrupted. Please copy manually!")
+        blink_error(6, 3)
+        return "idle", None, None
     dest_free = get_free_space(dest)
     log(f"\tsrc size: {src_size} Gb")
     log(f"\tdest free: {dest_free} Gb")
@@ -443,7 +448,7 @@ while True:
         # update status LED using messages from progress_q
         try:
             progress_float = progress_q.get(block=False)
-            progress_outof10 = ceil(progress_float * 10)
+            progress_outof10 = floor(progress_float * 10)
             blink_progress_led(progress_outof10)
         except queue.Empty:
             pass

@@ -12,6 +12,23 @@ import subprocess
 import threading
 from pathlib import Path
 import queue
+import subprocess
+from datetime import datetime
+from pathlib import Path
+
+# script parameters
+power_button_hold_time = 3  # require 3 second hold to shut down pi
+ui_button_hold_time = 1  # 1 second hold differentiats press/hold for go, cancel, eject
+# every x seconds, check if a source and destination are mounted
+mount_check_interval = 1
+mount_location = "/media/pi"  # location of mounted USB devices
+ui_sleep_time = 0.05  # seconds to sleep between checking for user input
+# patterns to always exclude from copy
+excluded_patterns = [".Trashes", ".fsevents*", "System*", ".Spotlight*"]
+# define file types for which we want to exclude files below a size threshold
+remove_small_file_extensions = ["wav", "WAV"]
+# minimum file size to include for these file types: 100kb ~=1sec .WAV audio
+min_file_size = "100k"
 
 # GPIO pin setup for LEDs and Buttons
 status_led = LED(18)
@@ -20,18 +37,12 @@ error_led = LED(22)
 src_mounted_led = LED(23)
 dest_mounted_led = LED(24)
 
-go_button = Button(4, hold_time=1)
-cancel_button = Button(17, hold_time=1)
-eject_button = Button(5, hold_time=1)
-# power button is GPIO3, but managed by a separate script
 
-# script parameters
-mount_check_interval = 1  # every x seconds, check if a source and destination are mounted
-mount_location = "/media/pi"  # location of mounted USB devices
-ui_sleep_time = 0.05  # seconds to sleep between checking for user input
-min_file_size = "100k"  # minimum .wav/.WAV file size to include: 100kb ~=1sec .WAV audio
-# note: all files other than .wav and .WAV are copied regardless of size, but 
-# except the excluded file types: '.Trashes'  '.fsevents*' 'System*' '.Spotlight*'
+# initialize buttons
+power_button = Button(3, hold_time=power_button_hold_time)
+go_button = Button(4, hold_time=ui_button_hold_time)
+cancel_button = Button(17, hold_time=ui_button_hold_time)
+eject_button = Button(5, hold_time=ui_button_hold_time)
 
 # initialize global variables
 rsync_process = None
@@ -85,12 +96,15 @@ def update_leds(status):
         progress_led.off()
 
 
-def get_free_space(disk, scale=2 ** 30):
+def get_free_space(disk, scale=2**30):
     return float(disk_usage(disk).free) / scale
 
 
-def get_used_space(disk, scale=2 ** 30):
+def get_used_space(disk, scale=2**30):
     return float(disk_usage(disk).used) / scale
+
+
+## Define LED blink patterns ##
 
 
 def blink_error(n, reps=2):
@@ -104,6 +118,28 @@ def blink_error(n, reps=2):
         sleep(0.4)
 
 
+def blink_shutdown_aborted_error():
+    """send 10 rapid blinks in succession"""
+    for i in range(10):
+        error_led.on()
+        sleep(0.1)
+        error_led.off()
+        sleep(0.1)
+
+
+def blink_shutting_down():
+    """blink all 3 LEDs 5x indicating the devices is shutting down"""
+    for i in range(5):
+        error_led.on()
+        status_led.on()
+        progress_led.on()
+        sleep(0.3)
+        error_led.off()
+        status_led.off()
+        progress_led.off()
+        sleep(0.3)
+
+
 def blink_progress_led(outof10):
     """blink the progress led up to 10 times to indicate progress out of 10"""
     if outof10 > 10 or outof10 < 0:
@@ -112,7 +148,7 @@ def blink_progress_led(outof10):
     sleep(3 - 0.25 * outof10)
 
 
-def get_src_drive():  # TODO: blink the drive LED rather than error
+def get_src_drive():
     """search for source and destination drives mounted at mount_location
     a source drive does is any drive listed in /media/pi/ that does not have a file/folder named PICOPY_DESTINATION in root directory
     must find exactly one. if zero returns None, if >1 blinks error"""
@@ -182,7 +218,9 @@ def prepare_copy():
     dest = get_dest_drive()
     if dest is None:
         blink_error(4, 3)
-        log("ERR: no destination found. Dest should contain file or folder PICOPY_DESTINATION in root")
+        log(
+            "ERR: no destination found. Dest should contain file or folder PICOPY_DESTINATION in root"
+        )
         return "idle", None, None
 
     log(f"found source drive {source} and destination drive {dest}")
@@ -241,20 +279,22 @@ def start_copy_thread(source, dest):
 
     # we will run two rsync commands, copying all non-wav files then including wav files over min_file_size
     # first copy everything except .wav, .WAV, and architve files we don't want
+    exclude_small_pattern = " ".join(
+        [f"--exclude *.{ext}" for ext in remove_small_file_extensions]
+    )
+    always_exclude_pattern = " ".join([f"--exclude {ext}" for ext in excluded_patterns])
     cmd = (
-        f"rsync -rv --log-file=./rsync.log --progress " +
-        f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' " +
-        f"--exclude '*.wav' --exclude '*.WAV' {source} {dest_save_dir}"
-        )
+        f"rsync -rv --log-file=./rsync.log --progress "
+        + f"{always_exclude_pattern} {exclude_small_pattern} {source} {dest_save_dir}"
+    )
     log(cmd)
     subprocess.run(shlex.split(cmd))
-    
+
     # second, copy .wav and .WAV files above min_file_size
     cmd = (
-        f"rsync -rv --log-file=./rsync.log --min-size={min_file_size} --progress --ignore-existing " +
-        f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' " +
-        f"{source} {dest_save_dir}"
-        )
+        f"rsync -rv --log-file=./rsync.log --min-size={min_file_size} --progress --ignore-existing "
+        + f"{always_exclude_pattern} {source} {dest_save_dir}"
+    )
     log(cmd)
     rsync_process = subprocess.Popen(
         shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -273,18 +313,17 @@ def start_copy_thread(source, dest):
     return ("copying", rsync_process, rsync_outq, rsync_thread, dest_save_dir)
 
 
-def check_dest_synced(source, dest, dest_save_dir):
+def check_dest_synced(source, dest_save_dir):
     log("checking if dest has all files from source")
-    start_time = time()
 
     n_files_out_of_sync = 0
 
     # check sync of non wav/WAV files: (dry run with -n flag and --stats)
     cmd = (
-        f"rsync -rvn --stats  --progress --size-only " +
-        f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' " +
-        f"--exclude '*.wav' --exclude '*.WAV' {source} {dest_save_dir}"
-        )
+        f"rsync -rvn --stats  --progress --size-only "
+        + f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' "
+        + f"--exclude '*.wav' --exclude '*.WAV' {source} {dest_save_dir}"
+    )
     log(cmd)
     check_process = subprocess.Popen(
         shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -300,15 +339,14 @@ def check_dest_synced(source, dest, dest_save_dir):
     # check sync of all wav/WAV files over size limit:
     # rsync command (dry run) to see if any files would be transferred based on size difference
     cmd = (
-        f"rsync -rvn --stats --min-size={min_file_size} --progress --ignore-existing " +
-        f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' " +
-        f"{source} {dest_save_dir}"
-        )
+        f"rsync -rvn --stats --min-size={min_file_size} --progress --ignore-existing "
+        + f"--exclude .Trashes --exclude '.fsevents*' --exclude 'System*' --exclude '.Spotlight*' "
+        + f"{source} {dest_save_dir}"
+    )
     log(cmd)
     check_process = subprocess.Popen(
         shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
-    # check_process.communicate()
     return_values = [
         f
         for f in output_parser(check_process)
@@ -347,110 +385,157 @@ def cancel_button_held():
     return "incomplete_transfer"
 
 
-# the main loop only catches user input and sends work to threads
-status = "idle"
-log("status: " + status)
+def shutdown():
+    """attempts raspberry pi shutdown
 
-# TODO: leds for mounted source and dest drives (update every few seconds)
-last_mount_check = -1
-prev_status = None
-while True:
+    - if any external drives mounted, does not shutdown
+    - returns True if shutdown happens, false otherwise
+    """
+    # if any external drives are mounted, do not shut down
+    num_external_drives = len(os.listdir("/media/pi"))
+    if num_external_drives > 0:
+        # do not shut down.
+        # add event to the log.
+        with open("/home/pi/shutdown_log.txt", "a+") as f:
+            f.write(f"{datetime.now()}: Shutdown blocked due to mounted drives.\n")
 
-    sleep(ui_sleep_time)
+        # flash error light 10x fast as a warning
+        blink_shutdown_aborted_error()
 
-    # handle user input
-    if cancel_button.is_held:
-        status = cancel_button_held()
-        sleep(3)
-    elif go_button.is_pressed and status == "idle":
-        log("go button pressed")
-        status, source, dest = prepare_copy()
-        sleep(1)
-    elif go_button.is_pressed and status == "complete_transfer":
-        log("user aknowledged finished transfer")
-        status = "idle"
-        sleep(1)
-    elif go_button.is_held and status == "incomplete_transfer":
-        # requires user to HOLD go button to aknowledge an incomplete transfer
-        log("user akcnowledged incomplete transfer")
-        status = "idle"
-        sleep(3)
-    elif go_button.is_pressed and status == "ready_to_copy":
-        # start copy thread
-        status, rsync_process, rsync_outq, rsync_thread, dest_save_dir = start_copy_thread(
-            source, dest
-        )
-        progress_monitor_thread, progress_q = start_progress_monitor_thread(
-            source, dest, rsync_thread
-        )
-        sleep(1)
-    elif eject_button.is_pressed:
-        if status == "ready_to_copy":
-            status = "idle"
-        # wait to see if this is a simple press or hold:
-        eject_button.wait_for_release(1)
-        if eject_button.is_held:
-            # eject the destination drive
-            log("ejecting destination")
-            eject_drive(source=False)
-            sleep(3)
-        else:  # short press, no longer held
-            # eject the source drive
-            log("ejecting source")
-            eject_drive(source=True)
+        return False
+
+    else:  # shutdown
+        # blink all 3 LEDs
+        blink_shutting_down()
+
+        # write to log file
+        with open("/home/pi/shutdown_log.txt", "a+") as f:
+            f.write(f"{datetime.now()}: Shutting down.\n")
+
+        # force shutdown
+        subprocess.call(["sudo", "shutdown", "-h", "now"], shell=False)
+
+        return True
+
+
+if __name__ == "__main__":
+    # the main loop ideally only catches user input and sends work to threads
+    # currently it also performs the correct copy checking and waits for LED
+    # blink patterns to complete
+
+    status = "idle"
+    log("status: " + status)
+    last_mount_check = -1
+    prev_status = None
+    shutting_down = False
+
+    while not shutting_down:
+        sleep(ui_sleep_time)
+
+        # handle user input
+        if power_button.is_held:
+            # only powers off if no external drives are mounted
+            shutting_down = shutdown()
+            continue
+        elif cancel_button.is_held:
+            # attempts to shut down rsync process
+            # waits up to 5s for termination
+            status = cancel_button_held()
+            sleep(3)  # don't try again too soon
+        elif go_button.is_pressed and status == "idle":
+            log("go button pressed")
+            status, source, dest = prepare_copy()
             sleep(1)
+        elif go_button.is_pressed and status == "complete_transfer":
+            log("user aknowledged finished transfer")
+            status = "idle"
+            sleep(1)
+        elif go_button.is_held and status == "incomplete_transfer":
+            # requires user to HOLD go button to aknowledge an incomplete transfer
+            log("user akcnowledged incomplete transfer")
+            status = "idle"
+            sleep(3)
+        elif go_button.is_pressed and status == "ready_to_copy":
+            # start copy thread
+            status, rsync_process, rsync_outq, rsync_thread, dest_save_dir = (
+                start_copy_thread(source, dest)
+            )
+            progress_monitor_thread, progress_q = start_progress_monitor_thread(
+                source, dest, rsync_thread
+            )
+            sleep(1)
+        elif eject_button.is_pressed:
+            if status == "ready_to_copy":
+                status = "idle"
+            # wait to see if this is a simple press or hold:
+            eject_button.wait_for_release(1)
+            if eject_button.is_held:
+                # eject the destination drive
+                log("ejecting destination")
+                eject_drive(source=False)
+                sleep(3)
+            else:  # short press, no longer held
+                # eject the source drive
+                log("ejecting source")
+                eject_drive(source=True)
+                sleep(1)
 
-    # handle end-of-copy: check integrity of copy
-    if status == "copying" and not rsync_thread.is_alive():
-        # we are done copying, or it failed
-        log("rsync thread finished")
-        status = "check_transfer"
+        # handle end-of-copy: check integrity of copy
+        if status == "copying" and not rsync_thread.is_alive():
+            # we are done copying, or it failed
+            log("rsync thread finished")
+            status = "check_transfer"
 
-        status_led.blink(0.25, 0.25)
-        sleep(0.25)
-        progress_led.blink(0.25, 0.25)
+            status_led.blink(0.25, 0.25)
+            sleep(0.25)
+            progress_led.blink(0.25, 0.25)
 
-        # report finished or incomplete transfer
-        complete_transfer = check_dest_synced(source, dest, dest_save_dir)
-        if complete_transfer:
-            log("transfer was complete. Press Go to acknowledge.")
-            status = "complete_transfer"
-        else:
-            log("ERR: transfer was not complete. Hold Go to acknowledge.")
-            status = "incomplete_transfer"
-        status_led.off
-        progress_led.off
+            # report finished or incomplete transfer
+            # not background, so could hold up the UI loop for a while
+            complete_transfer = check_dest_synced(source, dest_save_dir)
+            if complete_transfer:
+                log("transfer was complete. Press Go to acknowledge.")
+                status = "complete_transfer"
+            else:
+                log("ERR: transfer was not complete. Hold Go to acknowledge.")
+                status = "incomplete_transfer"
+            status_led.off
+            progress_led.off
 
-    # check if source and dest drives are mounted
-    if time() - last_mount_check > mount_check_interval:
-        last_mount_check = time()
-        src_mounted_led.off() if get_src_drive() is None else src_mounted_led.on()
-        dest_mounted_led.off() if get_dest_drive() is None else dest_mounted_led.on()
+        # check if source and dest drives are mounted
+        if time() - last_mount_check > mount_check_interval:
+            last_mount_check = time()
+            src_mounted_led.off() if get_src_drive() is None else src_mounted_led.on()
+            (
+                dest_mounted_led.off()
+                if get_dest_drive() is None
+                else dest_mounted_led.on()
+            )
 
-    # check if status changed during this iteration
-    status_changed = status != prev_status
-    if status_changed:
-        log(f"status: {status}")
+        # check if status changed during this iteration
+        status_changed = status != prev_status
+        if status_changed:
+            log(f"status: {status}")
 
-    # update LEDs and depending on status:
-    if status_changed:
-        update_leds(status)
+        # update LEDs and depending on status:
+        if status_changed:
+            update_leds(status)
 
-    # read output of copying thread to the log
-    if status == "copying":
-        # read lines from rsync output
-        try:
-            line = rsync_outq.get(block=False)
-            log(line)
-        except queue.Empty:
-            pass  # no lines in queue
+        # read output of copying thread to the log
+        if status == "copying":
+            # read lines from rsync output
+            try:
+                line = rsync_outq.get(block=False)
+                log(line)
+            except queue.Empty:
+                pass  # no lines in queue
 
-        # update status LED using messages from progress_q
-        try:
-            progress_float = progress_q.get(block=False)
-            progress_outof10 = floor(progress_float * 10)
-            blink_progress_led(progress_outof10)
-        except queue.Empty:
-            pass
+            # update status LED using messages from progress_q
+            try:
+                progress_float = progress_q.get(block=False)
+                progress_outof10 = floor(progress_float * 10)
+                blink_progress_led(progress_outof10)  # holds up the loop!
+            except queue.Empty:
+                pass
 
-    prev_status = status
+        prev_status = status

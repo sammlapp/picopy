@@ -14,7 +14,7 @@
 case "$1" in
   start)
     echo "Starting picopy.py"
-    /usr/local/bin/picopy.py &
+    /usr/bin/python3 /usr/local/bin/picopy.py &
     ;;
   stop)
     echo "Stopping picopy.py"

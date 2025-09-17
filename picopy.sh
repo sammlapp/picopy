@@ -14,11 +14,15 @@
 case "$1" in
   start)
     echo "Starting picopy.py"
-    /usr/bin/python3 /usr/local/bin/picopy.py &
+    /usr/bin/python3 /usr/local/bin/picopy.py >> ~/picopy.log &
     ;;
   stop)
     echo "Stopping picopy.py"
     pkill -f /usr/local/bin/picopy.py
+    ;;
+  debug)
+    echo "Running picopy.py in debug mode (print to console)"
+    /usr/bin/python3 /usr/local/bin/picopy.py
     ;;
   *)
     echo "Usage: /etc/init.d/picopy.sh {start|stop}"

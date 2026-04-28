@@ -115,3 +115,105 @@ for instance,
 `ssh pi@swallow-001.local` if the hostname was changed to `swallow-001`
 
 This allows you to view, manipulate, and debug files and programs on the Swallow. 
+
+# Setting up a Raspberry Pi 4.0 to use as a Swallow
+These instructions are a work in progress
+
+### Operating system
+- flash SD card with raspberry pi OS using Raspberry PI [Imager](https://www.raspberrypi.com/software/) application. 
+
+> Choose the latest 64 Bit Raspberry Pi OS and select the attached SD card as the drive
+
+- use the set-up features in the application to:
+  - set the country/location
+  - set the host-name (swallow-016, eg)
+  - enter wifi credentials for a local wifi network. 
+  - enable SSH (password authentication) 
+  - set username ("pi" is good) and password
+ 
+Note: if setting up multiple swallows, can re-use the settings but need to re-enter the wifi password, login password, and modify the host-name
+
+### IP and SSH
+- SSH into the pi: `ssh pi@[hostname].local`, password: whatever you set during imaging
+
+- Get MAC address for the ETH0 ethernet port: from Pi's command line interface, run
+
+`ip link show` 
+
+and Serial Number:
+
+`cat /proc/cpuinfo | grep Serial`
+
+- write MAC address and serial number in a logging spreadsheet for your reference
+
+- Expand file system to use entire SD card
+
+`sudo raspi-config > advanced > expand filesystem`
+
+- reboot to realize the new file system space
+
+> Previously had to install exfat file system support, but this is now packaged in Raspberry Pi OS
+
+### Set up the picopy python script
+
+- requires internet connection (should automatically be on wifi network provided during set up)
+- move to ~ (default user) directory, clone picopy from github, and install: 
+ 
+```
+cd
+git clone https://github.com/sammlapp/picopy.git
+sudo sh ./picopy/script/install.sh
+```
+
+The install script creates a copy of picopy in startup applications and sets it up to run as an executable on startup. 
+
+### test hardware
+- stop picopy and listen-for-shutdown to avoid competition for GPIO
+
+```
+sudo systemctl stop listen-for-shutdown.service
+sudo systemctl stop picopy.service
+```
+
+- run test script on pi: 
+`python3 /home/pi/picopy/test_leds_buttons.py`
+- all leds will light up if they are working properly
+- check that all buttons work by pushing each button (should see text logged in console for each button)
+- use ctrl+C to exit
+
+> we previously used https://github.com/sammlapp/pi-power-button.git for power on/off, but now the power button is also controlled within the picopy program. This avoids GPIO conflicts. 
+
+- Reboot with `sudo reboot -h now` then check that it starts picopy (flashes green light 'ready' status) and recognizes an external exFat drive (source/dest drive LED lights up)
+
+# Debugging Raspberry Pi connectivity and setup
+Connect swallow directly to laptop with ethernet
+SSH using `ssh pi@[hostname].local` and enter password
+
+can manually set up wifi via: `sudo raspi-config` -> System Options -> Wilreless LAN -> enter network name and password
+
+can stop the python processes with:
+```
+sudo systemctl stop listen-for-shutdown.service
+sudo systemctl stop picopy.service
+```
+
+if you need to kill a process directly (eg picopy.py)
+```
+sudo htop
+F4 to filter -> type picopy
+F9 to kill -> 9 key -> enter
+```
+
+To run the button testing script:
+```
+cd ~/picopy
+python3 test_leds_buttons.py
+```
+
+Update pycopy with any changes: 
+```
+cd ~/picopy
+git pull
+sudo sh ./picopy/script/uninstall.sh
+sudo sh ./picopy/script/install.sh
+```

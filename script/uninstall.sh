@@ -5,11 +5,12 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "=> Stopping picopy...\n"
-sudo update-rc.d picopy.sh remove
-sudo /etc/init.d/picopy.sh stop
+sudo systemctl stop picopy.service
+sudo systemctl disable picopy.service
 
 echo "=> Removing picopy...\n"
-sudo rm -rf /usr/local/bin/picopy.py 
-sudo rm -rf /etc/init.d/picopy.sh 
+sudo rm -f /usr/local/bin/picopy.py
+sudo rm -f /etc/systemd/system/picopy.service
+sudo systemctl daemon-reload
 
 echo "picopy uninstalled.\n"

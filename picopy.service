@@ -1,0 +1,12 @@
+[Unit]
+Description=Picopy
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/bin/picopy.py
+Restart=on-failure
+StandardOutput=append:/var/log/picopy.log
+StandardError=append:/var/log/picopy.log
+
+[Install]
+WantedBy=multi-user.target

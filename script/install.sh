@@ -8,13 +8,12 @@ echo "=> Installing picopy...\n"
 sudo cp picopy.py /usr/local/bin/
 sudo chmod +x /usr/local/bin/picopy.py
 
-sudo cp picopy.sh /etc/init.d/
-sudo chmod +x /etc/init.d/picopy.sh
-
-sudo update-rc.d picopy.sh defaults
+sudo cp picopy.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable picopy.service
 
 echo "picopy installed.\n"
 
 echo "=> Starting picopy...\n"
-sudo /etc/init.d/picopy.sh start
+sudo systemctl start picopy.service
 

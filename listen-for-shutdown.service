@@ -1,0 +1,12 @@
+[Unit]
+Description=Listen for Shutdown
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/bin/listen-for-shutdown.py
+Restart=on-failure
+StandardOutput=append:/var/log/listen-for-shutdown.log
+StandardError=append:/var/log/listen-for-shutdown.log
+
+[Install]
+WantedBy=multi-user.target

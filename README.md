@@ -34,7 +34,7 @@ The Swallow always has a “status” which indicates the current mode of operat
 **Dest** (white): this light is on when a destination drive is mounted. A destination drive is any USB drive with a file or folder named `PICOPY_DESTINATION` in its root directory. 
 
 ## Shutting down the device
-Turning the device off requires you to hold the power button for 3 seconds. If any external drives are mounted, the device will not shut down. When the device shuts down, the small LEDS on the green board will turn off. Wait at least 15 seconds before unplugging the power cable. 
+Turning the device off requires you to hold the power button for 3 seconds. If any external drives are mounted, the device will not shut down. When the device shuts down, the small green LED on the Raspberry Pi itself (not the HAT) will turn off. Wait at least 15 seconds before unplugging the power cable. 
 
 ## Buttons: 
 There are four buttons and two types of button presses: a tap (<1 sec) and a hold (1-3 sec)
@@ -157,7 +157,7 @@ eject_button = Button(5, hold_time=1)
 ```
 
 ## Software Set Up
-  
+
 ### Operating system
 - flash SD card with raspberry pi OS using Raspberry PI [Imager](https://www.raspberrypi.com/software/) application. 
 

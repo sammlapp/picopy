@@ -12,6 +12,8 @@ Navigation:
 [Updating](#updating)
 
 
+![Swallow](img/swallow.jpg)
+
 ## Using Swallows to copy SD cards
 Swallows are raspberry pi-based devices that copy SD card content to a hard drive. This document explains how to use Swallows to copy SD card content to a hard drive. It assumes the Swallows are fully set up, so that picopy.py runs on boot. 
 The Swallow always has a “status” which indicates the current mode of operation. The LEDs indicate the current status of the Swallow. The flow chart may be all you need to understand how to use Swallows. (Just make sure your destination drive has a file or folder named `PICOPY_DESTINATION`, and don’t disconnect drives without ejecting them first!)
@@ -113,9 +115,6 @@ Hold the Run button to acknowledge the incomplete transfer and return to “idle
 ### General debugging: 
 See detailed debugging info below at [Debugging](#debugging)
 
-### schematic for Pi-HAT
-![swallow schematic](img/swallow-schematic.png)
-
 ### SSH into pi with Ethernet cable
 If you connect an ethernet cable directly to a Raspberry Pi, you can SSH in (provided SSH is enabled, `ssh` file exists in `~`) with:
 
@@ -133,6 +132,32 @@ This allows you to view, manipulate, and debug files and programs on the Swallow
 
 Setting up a Raspberry Pi 4.0 to use as a Swallow
 
+## Hardware
+The Swallow consists of a Raspberry Pi 4.0 and a custom daughterboard (see photo above) attached via [extra-tall 2x20 standoff headers](https://www.adafruit.com/product/1979?gad_source=1&gad_campaignid=21079227318&gbraid=0AAAAADx9JvQao8JRLSjhuDaIJQDdtOZKH&gclid=Cj0KCQjwguLSBhDLARIsAH-yPrG0qdzk0pY9etCq7b7iccVG3YmdbzVVmoxMxKw8OGGkEFS3ibbdhTkaAnO8EALw_wcB) (23 mm height) and supported by 2 28mm mounting pillars/standoffs on the other side (match to the full stack of your standoff headers, extra space helps with heat dissipation; 23 mm standoffs pictured in photo above). 
+
+The custom daughterboard (aka, HAT) was designed by Joe Begley (University of Pittsburgh), and provides 4 buttons and 5 indicator LEDS for the file copying workflow. The general schematic is given below, and design files are included in this repository under `/design_files/`. The Board design is also available at [OSHPARK](https://oshpark.com/shared_projects/6gW0xF1b):
+
+<a href="https://oshpark.com/shared_projects/6gW0xF1b"><img src="https://oshpark.com/assets/badge-5b7ec47045b78aef6eb9d83b3bac6b1920de805e9a0c227658eac6e19a045b9c.png" alt="Order from OSH Park"></img></a>
+
+![swallow schematic](img/swallow-schematic.png)
+
+The Buttons and LEDS could be switched to different GPIO ports if desired. The current implementation defaults to the following GPIO ports:
+
+```
+from gpiozero import LED, Button
+status_led = LED(18)
+progress_led = LED(27)
+error_led = LED(22)
+src_mounted_led = LED(23)
+dest_mounted_led = LED(24)
+go_button = Button(4, hold_time=1)
+cancel_button = Button(17, hold_time=1)
+eject_button = Button(5, hold_time=1)
+# power button is GPIO3, but managed by a separate script listen_for_shutdown.py
+```
+
+## Software Set Up
+  
 ### Operating system
 - flash SD card with raspberry pi OS using Raspberry PI [Imager](https://www.raspberrypi.com/software/) application. 
 

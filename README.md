@@ -8,6 +8,8 @@ The Swallow always has a “status” which indicates the current mode of operat
 
 ![workflow diagram for swallows](img/workflow.jpg)
 
+> Note: if the Swallow is offline and is disconnected then reconnected to power, it will not have the correct internal date and time. 
+
 ## LEDs: 
 **Status** (green): reports the current status
 
@@ -186,6 +188,10 @@ sudo systemctl stop picopy.service
 - Reboot with `sudo reboot -h now` then check that it starts picopy (flashes green light 'ready' status) and recognizes an external exFat drive (source/dest drive LED lights up)
 
 # Debugging Raspberry Pi connectivity and setup
+
+Picopy logs all messages to /var/log/picopy.log
+- consider deleting this file every once in a while (eg once per year) since it will continually grow in size
+
 Connect swallow directly to laptop with ethernet
 SSH using `ssh pi@[hostname].local` and enter password
 
@@ -210,10 +216,25 @@ cd ~/picopy
 python3 test_leds_buttons.py
 ```
 
-Update pycopy with any changes: 
+Update pycopy with any changes:
+
+If the swallow is connected to the internet, you can pull changes from the GitHub picopy repository:
 ```
 cd ~/picopy
 git pull
-sudo sh ./picopy/script/uninstall.sh
-sudo sh ./picopy/script/install.sh
+sudo sh ./script/uninstall.sh
+sudo sh ./script/install.sh
+```
+
+If connected via ethernet to a laptop, first pull changes to your laptop:
+```
+cd ~/picopy
+git pull
+```
+
+Then sync them to the swallow:
+```
+rsync -r ~/picopy/ pi@swallow-038.local:~/picopy/
+sudo sh ./script/uninstall.sh
+sudo sh ./script/install.sh
 ```

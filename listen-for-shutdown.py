@@ -34,18 +34,16 @@ def shutdown():
     if num_external_drives > 0:
         # do not shut down.
         # add event to the log.
-        with open("/home/pi/shutdown_log.txt", "a+") as f:
-            f.write(f"{datetime.now()}: Shutdown blocked due to mounted drives.\n")
-            # don't continue checking and writing log until button is released
-            while power_button.is_held:
-                sleep(sleep_time)
+        print(f"{datetime.now()}: Shutdown blocked due to mounted drives.\n")
+        # don't continue checking and writing log until button is released
+        while power_button.is_held:
+            sleep(sleep_time)
         return False
 
     else:  # shutdown
 
         # write to log file
-        with open("/home/pi/shutdown_log.txt", "a+") as f:
-            f.write(f"{datetime.now()}: Shutting down.\n")
+        print(f"{datetime.now()}: Shutting down.\n")
 
         # force shutdown
         subprocess.call(["sudo", "shutdown", "-h", "now"], shell=False)

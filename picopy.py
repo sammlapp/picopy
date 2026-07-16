@@ -14,11 +14,18 @@ from pathlib import Path
 import queue
 
 # GPIO pin setup for LEDs and Buttons
-status_led = LED(18)
-progress_led = LED(27)
-error_led = LED(22)
-src_mounted_led = LED(23)
-dest_mounted_led = LED(24)
+try:
+    status_led = LED(18)
+    progress_led = LED(27)
+    error_led = LED(22)
+    src_mounted_led = LED(23)
+    dest_mounted_led = LED(24)
+except Exception as e:
+    raise Exception("""
+          GPIO pins not available. Is PiCopy already running? Try stopping it
+          via `sudo systemctl stop picopy.service` or by finding the pycopy
+          process in htop.
+          """) from e
 
 go_button = Button(4, hold_time=1)
 cancel_button = Button(17, hold_time=1)
@@ -165,14 +172,28 @@ def eject_drive(source=True):
         # try to eject (unmount) the disk with system umount command
         cmd = f"umount {drive}"
         log(cmd)
-        response = subprocess.Popen(
-            shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        # Start the process
+        process = subprocess.Popen(
+            shlex.split(cmd), 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.STDOUT,
+            text=True  # Automatically decodes bytes to strings
         )
-        # response.communicate()
-        [log(r) for r in output_parser(response)]
+        # Safely capture full output and wait for process to finish
+        output, _ = process.communicate()
+        exit_code = process.returncode
 
-    sleep(1)
+        # Parse the captured string output
+        if output:
+            for line in output.splitlines():
+                log(line)
 
+        # Check final status
+        if exit_code == 0:
+            log(f"ejected {drive}")
+        else:
+            log(f"ERR: failed to eject {drive}")
+    sleep(0.1)
 
 def prepare_copy():
     log("checking for source and dest drives")

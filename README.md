@@ -1,9 +1,19 @@
 # picopy
 Copy sd cards to to a hard drive on Raspberry Pi-based Swallow devices
 
-## Using Swallows to copy SD cards
-Swallows are raspberry pi-based devices that copy SD card content to a hard drive. This document explains how to use Swallows to copy SD card content to a hard drive. It assumes the Swallows are fully set up, so that picopy.py runs on boot. See [this document](https://gist.github.com/sammlapp/20e8957f0b5e225f8afa4d88947d8b02) for instructions on setting up Swallows. 
+Navigation:
 
+[Copying Cards: Detailed Instructions](#detailed-instructions-for-copying-cards)
+
+[Setting up the Swallow](#initial-swallow-set-up)
+
+[Debugging](#debugging)
+
+[Updating](#updating)
+
+
+## Using Swallows to copy SD cards
+Swallows are raspberry pi-based devices that copy SD card content to a hard drive. This document explains how to use Swallows to copy SD card content to a hard drive. It assumes the Swallows are fully set up, so that picopy.py runs on boot. 
 The Swallow always has a “status” which indicates the current mode of operation. The LEDs indicate the current status of the Swallow. The flow chart may be all you need to understand how to use Swallows. (Just make sure your destination drive has a file or folder named `PICOPY_DESTINATION`, and don’t disconnect drives without ejecting them first!)
 
 ![workflow diagram for swallows](img/workflow.jpg)
@@ -22,12 +32,14 @@ The Swallow always has a “status” which indicates the current mode of operat
 **Dest** (white): this light is on when a destination drive is mounted. A destination drive is any USB drive with a file or folder named `PICOPY_DESTINATION` in its root directory. 
 
 ## Shutting down the device
-If the Swallow has been configured using [this document](https://gist.github.com/sammlapp/20e8957f0b5e225f8afa4d88947d8b02), turning the device off requires you to hold the power button for 3 seconds. If any external drives are mounted, the device will not shut down, instead it will blink the error LED 10 times rapidly. If the device is shutting down successfully, it will blink the Status, Progress, and Error LEDs together 5 times slowly. Wait at least 15 seconds before unplugging the power cable. 
+Turning the device off requires you to hold the power button for 3 seconds. If any external drives are mounted, the device will not shut down. When the device shuts down, the small LEDS on the green board will turn off. Wait at least 15 seconds before unplugging the power cable. 
 
 ## Buttons: 
 There are four buttons and two types of button presses: a tap (<1 sec) and a hold (1-3 sec)
 
-**Go**: used to prepare and start transfers
+Buttons:
+
+**Run**: used to prepare and start transfers
 
 **Stop**: used to interrupt copying tasks
 
@@ -35,9 +47,9 @@ There are four buttons and two types of button presses: a tap (<1 sec) and a hol
 
 **Power**: power on and off the pi (this will immediately cancel any copying task!)
 
-# Detailed Instructions
+# Detailed Instructions for copying cards
 
-## Set-Up
+## Set-Up Card Copying
 1. If you are using a new “destination” hard drive (the hard drive to which you will copy data): Plug the “destination drive” into a computer. In the top-level directory of that drive, make a folder called `PICOPY_DESTINATION`. This is not where the data will be copied to, its presence simply signals to the Swallow that this drive should be used as a destination rather than source for data copying.  
 
 2. attach the Swallow and hard drive to their power supplies
@@ -50,15 +62,15 @@ There are four buttons and two types of button presses: a tap (<1 sec) and a hol
 The flow chart above shows how each of the buttons can be used depending on the current status. 
 
 The typical workflow without interruptions or errors is:
-1. Tap “Go” to prepare a transfer 
+1. Tap Run to prepare a transfer 
 - Checks if source and destination are available
 - status changes from “idle” to “ready to copy”
-2. Tap “Go” again to start the transfer
+2. Tap Run again to start the transfer
 - Status changes from “ready to copy” to “copying”
 - wait for it to finish (blue LED indicates progress as # flashes/10)
 - Status changes from “copying” to “checking copy”
 - Status changes from “checking copy” to “complete”
-3. Tap “Go” again to acknowledge the completed transfer
+3. Tap Run again to acknowledge the completed transfer
 
 ## After copying
 1. Eject the source (tap eject button) and destination (hold eject button) drives
@@ -66,11 +78,11 @@ The typical workflow without interruptions or errors is:
 - It is now safe to unplug the drives from USB ports
 2. If desired, power off the device by holding the power button for 3 seconds
 
-# Errors and Troubleshooting
+## Errors and Troubleshooting during card copy
 
 ### Steady red light: incomplete transfer
 This means the data was not completely transferred to the destination; the rsync process failed to finish or was interrupted
-Hold the Go button to acknowledge the incomplete transfer and return to “idle”
+Hold the Run button to acknowledge the incomplete transfer and return to “idle”
 
 ### 3-blink error: source drive
 - Check that the src LED is on. If it is not, no source drive is mounted (or multiple possible source drives are mounted). (A source drive is any external USB drive that does not have a file or folder named `PICOPY_DESTINATION` in its root folder)
@@ -99,8 +111,7 @@ Hold the Go button to acknowledge the incomplete transfer and return to “idle�
 - The device is shutting down
 
 ### General debugging: 
-- ssh into the raspberry pi from a computer
-- Open the log files located in /usr/bin/picopy.out to read the output of the copying script
+See detailed debugging info below at [Debugging](#debugging)
 
 ### schematic for Pi-HAT
 ![swallow schematic](img/swallow-schematic.png)
@@ -118,8 +129,9 @@ for instance,
 
 This allows you to view, manipulate, and debug files and programs on the Swallow. 
 
-# Setting up a Raspberry Pi 4.0 to use as a Swallow
-These instructions are a work in progress
+# Initial Swallow Set up
+
+Setting up a Raspberry Pi 4.0 to use as a Swallow
 
 ### Operating system
 - flash SD card with raspberry pi OS using Raspberry PI [Imager](https://www.raspberrypi.com/software/) application. 
@@ -187,7 +199,8 @@ sudo systemctl stop picopy.service
 
 - Reboot with `sudo reboot -h now` then check that it starts picopy (flashes green light 'ready' status) and recognizes an external exFat drive (source/dest drive LED lights up)
 
-# Debugging Raspberry Pi connectivity and setup
+# Debugging 
+Infor for debugging Raspberry Pi connectivity and setup
 
 Picopy logs all messages to /var/log/picopy.log
 - consider deleting this file every once in a while (eg once per year) since it will continually grow in size
@@ -216,7 +229,8 @@ cd ~/picopy
 python3 test_leds_buttons.py
 ```
 
-Update pycopy with any changes:
+# Updating
+To update pycopy with any changes from the GitHub repository:
 
 If the swallow is connected to the internet, you can pull changes from the GitHub picopy repository:
 ```
@@ -235,6 +249,11 @@ git pull
 Then sync them to the swallow:
 ```
 rsync -r ~/picopy/ pi@swallow-038.local:~/picopy/
+```
+
+then, on the swallow, uninstall and reinstall
+```
+cd ~/picopy
 sudo sh ./script/uninstall.sh
 sudo sh ./script/install.sh
 ```
